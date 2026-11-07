@@ -1,0 +1,11 @@
+-- This shouldn't be tokenized
+-- And this
++*-/^ + - + * [               ] == =
+== = ===
+!= = ==
+> >=
+123 123.456 123.+-^
+
+123."hello world 123"
+
+hello = "world" and 123
