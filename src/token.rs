@@ -54,11 +54,11 @@ pub enum TokenType {
 pub struct Token {
     token_type: TokenType,
     lexeme: String,
-    line: i32,
+    line: usize,
 }
 
 impl Token {
-    pub fn new(token_type: TokenType, lexeme: String, line: i32) -> Self {
+    pub fn new(token_type: TokenType, lexeme: String, line: usize) -> Self {
         return Token {
             token_type,
             lexeme,
