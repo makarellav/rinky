@@ -31,9 +31,7 @@ impl Lexer {
     }
 
     fn add_token(&mut self, token_type: TokenType) {
-        let ch: String = self.source[self.start..self.current].iter().collect();
-
-        self.tokens.push(Token::new(token_type, ch, self.line));
+        self.add_token_range(token_type, self.start, self.current);
     }
 
     fn add_token_range(&mut self, token_type: TokenType, start: usize, end: usize) {
