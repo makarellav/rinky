@@ -1,4 +1,4 @@
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum TokenType {
     // Single-char tokens
     LParen,
@@ -28,8 +28,9 @@ pub enum TokenType {
     GtE,
     LtE,
     // Literals
-    Number,
+    Integer,
     String,
+    Float,
     Identifier,
     // Keywords
     If,

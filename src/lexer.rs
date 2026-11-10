@@ -1,4 +1,6 @@
-use crate::token::{Token, TokenType};
+use std::fmt::Error;
+
+use crate::token::{self, Token, TokenType};
 
 #[derive(Debug)]
 pub struct Lexer {
@@ -34,6 +36,12 @@ impl Lexer {
         self.tokens.push(Token::new(token_type, ch, self.line));
     }
 
+    fn add_token_range(&mut self, token_type: TokenType, start: usize, end: usize) {
+        let word: String = self.source[start..end].iter().collect();
+
+        self.tokens.push(Token::new(token_type, word, self.line));
+    }
+
     fn peek(&self) -> Option<char> {
         if self.current >= self.source.len() {
             return None;
@@ -66,7 +74,59 @@ impl Lexer {
         }
     }
 
-    pub fn tokenize(&mut self) -> &[Token] {
+    fn handle_number(&mut self) {
+        while matches!(self.peek(), Some(c) if c.is_ascii_digit()) {
+            self.advance();
+        }
+
+        if self.peek() == Some('.') && self.look_ahead(1).is_some_and(|c| c.is_ascii_digit()) {
+            self.advance();
+
+            while matches!(self.peek(), Some(c) if c.is_ascii_digit()) {
+                self.advance();
+            }
+
+            self.add_token(TokenType::Float);
+        } else {
+            self.add_token(TokenType::Integer);
+        }
+    }
+
+    fn handle_string(&mut self, closing: char) -> Result<(), String> {
+        let start_line = self.line;
+
+        while matches!(self.peek(), Some(c) if c != closing) {
+            if self.peek() == Some('\n') {
+                self.line += 1;
+            }
+
+            self.advance();
+        }
+
+        if self.peek().is_none() {
+            return Err(format!("line {start_line}: unterminated string"));
+        }
+
+        self.advance();
+
+        self.add_token_range(TokenType::String, self.start + 1, self.current - 1);
+
+        Ok(())
+    }
+
+    fn handle_identifier(&mut self) {
+        while matches!(self.peek(), Some(c) if c.is_alphanumeric() || c == '_') {
+            self.advance();
+        }
+
+        let word: String = self.source[self.start..self.current].iter().collect();
+
+        let ident_type = self.lookup_ident_type(&word);
+
+        self.add_token(ident_type);
+    }
+
+    pub fn tokenize(&mut self) -> Result<&[Token], String> {
         while self.current < self.source.len() {
             self.start = self.current;
 
@@ -128,77 +188,19 @@ impl Lexer {
                 ' ' | '\r' | '\t' => {}
                 _ => {
                     if ch.is_ascii_digit() {
-                        let mut number_str = String::from(ch);
-
-                        while let Some(&next_ch) = it.peek() {
-                            if next_ch.is_ascii_digit() {
-                                number_str.push(it.next().unwrap());
-                            } else {
-                                break;
-                            }
-                        }
-
-                        if it.peek() == Some(&'.') {
-                            let mut it_clone = it.clone();
-
-                            it_clone.next();
-
-                            if let Some(&post_dot_ch) = it_clone.peek() {
-                                if post_dot_ch.is_ascii_digit() {
-                                    // push the dot
-                                    number_str.push(it.next().unwrap());
-
-                                    while let Some(&next_ch) = it.peek() {
-                                        if next_ch.is_ascii_digit() {
-                                            number_str.push(it.next().unwrap());
-                                        } else {
-                                            break;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        self.add_token(TokenType::Number);
+                        self.handle_number();
                     } else if ch == '"' || ch == '\'' {
-                        // TODO: handle unterminated strings
-                        let mut str_value = String::new();
-
-                        while let Some(&next_ch) = it.peek() {
-                            if next_ch == ch {
-                                it.next();
-
-                                break;
-                            }
-
-                            if next_ch == '\n' {
-                                self.line += 1;
-                            }
-
-                            str_value.push(it.next().unwrap());
-                        }
-
-                        self.add_token(TokenType::String);
+                        self.handle_string(ch)?;
                     } else if ch.is_alphanumeric() || ch == '_' {
-                        let mut word = String::from(ch);
-
-                        while let Some(&next_ch) = it.peek() {
-                            if next_ch.is_alphanumeric() || next_ch == '_' {
-                                word.push(it.next().unwrap());
-                            } else {
-                                break;
-                            }
-                        }
-
-                        let ident_type = self.lookup_ident_type(&word);
-
-                        self.add_token(ident_type);
+                        self.handle_identifier();
+                    } else {
+                        return Err(format!("line {}: unknown character {ch}", self.line));
                     }
                 }
             }
         }
 
-        &self.tokens
+        Ok(&self.tokens)
     }
 
     fn lookup_ident_type(&self, word: &str) -> TokenType {

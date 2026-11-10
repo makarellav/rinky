@@ -15,14 +15,12 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let contents = fs::read_to_string(&filename)?;
 
-    let mut lexer = Lexer::new(contents);
-    let tokens = lexer.tokenize();
+    let mut lexer = Lexer::new(contents.chars().collect());
+    let tokens = lexer.tokenize()?;
 
     for token in tokens {
         println!("{:?}", token);
     }
-
-    // TODO: tokenize
 
     Ok(())
 }
